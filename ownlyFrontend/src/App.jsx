@@ -22,7 +22,7 @@ export default function App() {
             
             <Droplet className="w-16 h-16 mx-auto mb-6 text-purple-600 dark:text-purple-400" />
             <h1 className="text-5xl font-bold mb-4 tracking-tight">
-              Glass<span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500">Wear</span>
+              Ownly<span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500">Clothing</span>
             </h1>
             <p className="text-lg text-gray-700 dark:text-gray-300 mb-8">
               La nueva dimensión del estilo. Transparencia, elegancia y exclusividad diseñada para ti.

@@ -1,290 +1,231 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Droplet, Moon, Sun, Menu, Palette, 
-  ShoppingBag, Globe, Camera, User, Mail 
-} from 'lucide-react';
-
-const productsData = [
-  { id: 1, name: "Camiseta Esencial", price: "19.99€", category: "Camisetas", emoji: "👕" },
-  { id: 2, name: "Sudadera Oversize", price: "39.99€", category: "Sudaderas", emoji: "🧥" },
-  { id: 3, name: "Pantalón Cargo", price: "49.99€", category: "Pantalones", emoji: "👖" },
-  { id: 4, name: "Gorra Urbana", price: "14.99€", category: "Gorras", emoji: "🧢" },
-  { id: 5, name: "Gafas de Sol", price: "24.99€", category: "Accesorios", emoji: "🕶️" },
-  { id: 6, name: "Mochila Minimal", price: "34.99€", category: "Accesorios", emoji: "🎒" },
-  { id: 7, name: "Camiseta Gráfica", price: "22.99€", category: "Camisetas", emoji: "👚" },
-  { id: 8, name: "Pantalón Chándal", price: "29.99€", category: "Pantalones", emoji: "🩳" },
-  { id: 9, name: "Gorra Visera Plana", price: "16.99€", category: "Gorras", emoji: "👲" },
-];
+import React, { useState, useEffect } from 'react';
+import { Droplet, Moon, Sun, Palette, ShoppingBag, X, CreditCard } from 'lucide-react';
 
 export default function Store() {
-  const [view, setView] = useState('store'); // 'store' o 'customizer'
+  const [view, setView] = useState('store');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [currentCategory, setCurrentCategory] = useState('All');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const [canvasType, setCanvasType] = useState('tshirt');
-  const [garmentColor, setGarmentColor] = useState('#ffffff');
-  const [garmentText, setGarmentText] = useState('');
+  const [products, setProducts] = useState([]);
+  
+  // Estados del Carrito
+  const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setIsDarkMode(true);
+    if (isDarkMode) {
       document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/products');
+        const data = await response.json();
+        setProducts(data);
+      } catch (error) {
+        console.error("Error al conectar con el servidor:", error);
+      }
+    };
+    fetchProducts();
   }, []);
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark');
+  const addToCart = (product) => {
+    setCart([...cart, product]);
   };
 
-  const handleCategorySelect = (category) => {
-    setCurrentCategory(category);
-    setView('store');
-    setIsMobileMenuOpen(false);
+  const removeFromCart = (indexToRemove) => {
+    setCart(cart.filter((_, index) => index !== indexToRemove));
   };
+
+  const cartTotal = cart.reduce((total, item) => total + (parseFloat(item.retail_price) || 0), 0).toFixed(2);
+
+  // NUEVO: Función para iniciar el pago con Stripe
+  const handleStripeCheckout = async () => {
+    setIsCheckingOut(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/create-stripe-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cartItems: cart })
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        // Redirigir al usuario a la página de pago segura de Stripe
+        window.location.href = data.url;
+      } else {
+        alert("Hubo un problema al generar el enlace de pago.");
+      }
+    } catch (error) {
+      console.error("Error en checkout:", error);
+      alert("Error al conectar con el servidor para el pago.");
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  const categories = ['Camisetas', 'Sudaderas', 'Pantalones', 'Gorras', 'Accesorios'];
+  const filteredProducts = currentCategory === 'All' 
+    ? products 
+    : products.filter(p => p.category === currentCategory);
 
   return (
-    <div className="min-h-screen flex flex-col animate-fade-in">
-      <Header 
-        toggleDarkMode={toggleDarkMode} 
-        isDarkMode={isDarkMode} 
-        toggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-        goHome={() => { setView('store'); setCurrentCategory('All'); }}
-      />
+    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+      <header className="glass-panel sticky top-0 z-40 mx-4 mt-4 mb-6 rounded-2xl px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('store')}>
+          <Droplet className="text-purple-500 w-8 h-8" />
+          <span className="text-2xl font-bold">Ownly<span className="font-light">Clothing</span></span>
+        </div>
+        <div className="flex gap-4">
+          <button onClick={() => setIsCartOpen(true)} className="glass-button p-2 rounded-full relative transition-all">
+            <ShoppingBag className="w-5 h-5" />
+            {cart.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                {cart.length}
+              </span>
+            )}
+          </button>
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="glass-button p-2 rounded-full">
+            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+        </div>
+      </header>
 
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 flex flex-col md:flex-row gap-6 mb-10">
-        <Sidebar 
-          isOpen={isMobileMenuOpen} 
-          onSelectCategory={handleCategorySelect}
-          onShowCustomizer={() => { setView('customizer'); setIsMobileMenuOpen(false); }}
-        />
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 flex flex-col md:flex-row gap-6">
+        {/* Sidebar */}
+        <aside className="w-full md:w-64 h-fit sticky top-28 glass-panel rounded-2xl p-6">
+          <h2 className="text-sm uppercase text-gray-500 dark:text-gray-400 font-semibold mb-4">Categorías</h2>
+          <nav className="flex flex-col space-y-2 mb-6">
+            <button onClick={() => setCurrentCategory('All')} className="text-left px-4 py-2 rounded-xl hover:bg-white/30 dark:hover:bg-white/10 transition-colors">Todas</button>
+            {categories.map(cat => (
+              <button key={cat} onClick={() => setCurrentCategory(cat)} className="text-left px-4 py-2 rounded-xl hover:bg-white/30 dark:hover:bg-white/10 transition-colors">
+                {cat}
+              </button>
+            ))}
+          </nav>
+          
+          <div className="border-t border-gray-300 dark:border-gray-700 pt-6">
+            <button onClick={() => setView('customizer')} className="w-full glass-button bg-gradient-to-r from-purple-500/20 to-cyan-500/20 py-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-2">
+              <Palette className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              Crea tu prenda
+            </button>
+          </div>
+        </aside>
 
-        <main className="flex-1 min-w-0">
-          {view === 'store' && <ProductGrid category={currentCategory} />}
-          {view === 'customizer' && (
-            <Customizer 
-              type={canvasType} 
-              setType={setCanvasType}
-              color={garmentColor}
-              setColor={setGarmentColor}
-              text={garmentText}
-              setText={setGarmentText}
-              isDarkMode={isDarkMode}
-            />
+        {/* Main */}
+        <main className="flex-1">
+          {view === 'store' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map(p => (
+                <div key={p.id} className="glass-panel p-6 rounded-2xl text-center flex flex-col items-center">
+                  <img src={p.thumbnail_url} alt={p.name} className="w-32 h-32 object-contain mb-4" />
+                  <h3 className="font-bold text-lg">{p.name}</h3>
+                  <p className="text-purple-600 dark:text-purple-400 font-bold mb-4">{p.retail_price ? `${p.retail_price}€` : 'Precio no disp.'}</p>
+                  
+                  <button onClick={() => addToCart(p)} className="glass-button w-full py-2 rounded-xl flex justify-center items-center gap-2 font-semibold hover:bg-purple-500 hover:text-white transition-colors">
+                    <ShoppingBag className="w-4 h-4" /> Añadir al carrito
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Customizer onBack={() => setView('store')} />
           )}
         </main>
       </div>
-      <Footer />
-    </div>
-  );
-}
 
-function Header({ toggleDarkMode, isDarkMode, toggleMenu, goHome }) {
-  return (
-    <header className="glass-panel sticky top-0 z-40 mx-4 mt-4 mb-6 rounded-2xl px-6 py-4 flex justify-between items-center">
-      <div className="flex items-center gap-2 cursor-pointer" onClick={goHome}>
-        <Droplet className="text-purple-500 w-8 h-8" />
-        <span className="text-2xl font-bold tracking-tight">Glass<span className="font-light">Wear</span></span>
-      </div>
-      
-      <div className="flex items-center gap-4">
-        <button onClick={toggleDarkMode} className="glass-button p-2 rounded-full" aria-label="Cambiar modo oscuro">
-          {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-        <button className="md:hidden glass-button p-2 rounded-full" onClick={toggleMenu}>
-          <Menu className="w-5 h-5" />
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function Sidebar({ isOpen, onSelectCategory, onShowCustomizer }) {
-  const categories = ['Camisetas', 'Sudaderas', 'Pantalones', 'Gorras', 'Accesorios'];
-  
-  return (
-    <aside className={`glass-panel rounded-2xl p-6 w-full md:w-64 flex-shrink-0 h-fit sticky top-28 ${isOpen ? 'block' : 'hidden md:block'}`}>
-      <h2 className="text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-4">Categorías</h2>
-      <nav className="flex flex-col space-y-2">
-        {categories.map(cat => (
-          <button key={cat} onClick={() => onSelectCategory(cat)} className="text-left px-4 py-2 rounded-xl hover:bg-white/30 dark:hover:bg-white/5 transition-colors font-medium text-gray-700 dark:text-gray-200">
-            {cat}
-          </button>
-        ))}
-      </nav>
-      
-      <div className="mt-8 pt-6 border-t border-gray-300/30 dark:border-gray-600/30">
-        <button onClick={onShowCustomizer} className="w-full glass-button bg-gradient-to-r from-purple-500/20 to-cyan-500/20 py-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 group">
-          <Palette className="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:rotate-12 transition-transform" />
-          Crea tu prenda
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function ProductGrid({ category }) {
-  const filtered = category === 'All' ? productsData : productsData.filter(p => p.category === category);
-
-  return (
-    <div className="animate-fade-in">
-      <div className="flex justify-between items-end mb-6 px-2">
-        <div>
-          <h2 className="text-3xl font-bold">{category === 'All' ? 'Destacados' : category}</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Descubre nuestra colección premium</p>
-        </div>
-      </div>
-      
-      {filtered.length === 0 ? (
-        <p className="text-center py-10 text-gray-500">No hay productos en esta categoría.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((product) => (
-            <div key={product.id} className="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center text-center group cursor-pointer animate-slide-up">
-              <div className="w-32 h-32 mb-4 bg-white/30 dark:bg-black/30 rounded-full flex items-center justify-center text-6xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                {product.emoji}
-              </div>
-              <h3 className="text-lg font-semibold mb-1">{product.name}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{product.category}</p>
-              <div className="flex justify-between items-center w-full mt-auto">
-                <span className="text-xl font-bold text-purple-600 dark:text-purple-400">{product.price}</span>
-                <button className="glass-button p-2 rounded-lg text-gray-800 dark:text-white">
-                  <ShoppingBag className="w-5 h-5" />
-                </button>
-              </div>
+      {/* Modal del Carrito */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-opacity">
+          <div className="w-full max-w-md h-full bg-white dark:bg-gray-900 shadow-2xl p-6 flex flex-col animate-slide-up">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Tu Carrito</h2>
+              <button onClick={() => setIsCartOpen(false)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800">
+                <X className="w-6 h-6" />
+              </button>
             </div>
-          ))}
+
+            <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+              {cart.length === 0 ? (
+                <p className="text-gray-500 text-center mt-10">Tu carrito está vacío.</p>
+              ) : (
+                cart.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center p-4 border border-gray-200 dark:border-gray-800 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <img src={item.thumbnail_url} alt={item.name} className="w-12 h-12 object-cover rounded" />
+                      <div>
+                        <h4 className="font-semibold text-sm">{item.name}</h4>
+                        <p className="text-sm text-purple-600 font-bold">{item.retail_price}€</p>
+                      </div>
+                    </div>
+                    <button onClick={() => removeFromCart(index)} className="text-red-500 hover:text-red-700 text-sm font-semibold">Eliminar</button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="border-t border-gray-200 dark:border-gray-800 pt-6 mt-4">
+                <div className="flex justify-between items-center mb-6 text-xl font-bold">
+                  <span>Total:</span>
+                  <span>{cartTotal}€</span>
+                </div>
+                
+                {/* Botón único de Stripe */}
+                <button 
+                  onClick={handleStripeCheckout}
+                  disabled={isCheckingOut}
+                  className={`w-full bg-[#635BFF] text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 transition-colors ${isCheckingOut ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#4b45cf]'}`}
+                >
+                  <CreditCard className="w-5 h-5" /> 
+                  {isCheckingOut ? 'Procesando...' : 'Pagar de forma segura'}
+                </button>
+                <p className="text-xs text-center text-gray-500 mt-3">Pagos procesados de forma segura por Stripe</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function Customizer({ type, setType, color, setColor, text, setText, isDarkMode }) {
-  const canvasRef = useRef(null);
+function Customizer({ onBack }) {
+  const [text, setText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.shadowColor = isDarkMode ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.2)';
-    ctx.shadowBlur = 15;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 10;
-
-    ctx.fillStyle = color;
-    ctx.strokeStyle = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    if (type === 'tshirt') {
-      ctx.moveTo(120, 50); ctx.quadraticCurveTo(200, 100, 280, 50); ctx.lineTo(350, 100); ctx.lineTo(330, 180); ctx.lineTo(290, 150); ctx.lineTo(290, 350); ctx.lineTo(110, 350); ctx.lineTo(110, 150); ctx.lineTo(70, 180); ctx.lineTo(50, 100);
-    } else if (type === 'hoodie') {
-      ctx.moveTo(140, 80); ctx.quadraticCurveTo(200, 10, 260, 80); ctx.lineTo(350, 120); ctx.lineTo(340, 220); ctx.lineTo(300, 190); ctx.lineTo(300, 350); ctx.lineTo(100, 350); ctx.lineTo(100, 190); ctx.lineTo(60, 220); ctx.lineTo(50, 120);
-    } else if (type === 'pants') {
-      ctx.moveTo(120, 50); ctx.lineTo(280, 50); ctx.lineTo(320, 350); ctx.lineTo(230, 350); ctx.lineTo(200, 150); ctx.lineTo(170, 350); ctx.lineTo(80, 350);
-    } else if (type === 'cap') {
-      ctx.moveTo(100, 200); ctx.bezierCurveTo(100, 50, 300, 50, 300, 200); ctx.lineTo(360, 220); ctx.lineTo(340, 240); ctx.lineTo(100, 200);
+  const handleSendToPrintful = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/create-custom-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'tshirt', text, color: '#ffffff' })
+      });
+      const data = await response.json();
+      if(data.success) alert("Diseño guardado. (En el futuro se añadirá al carrito)");
+    } catch (e) {
+      alert("Error: Verifica el backend.");
+    } finally {
+      setIsLoading(false);
     }
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowColor = 'transparent';
-    ctx.stroke();
-
-    ctx.beginPath();
-    if (type === 'tshirt') { ctx.moveTo(120,50); ctx.quadraticCurveTo(200, 100, 280, 50); ctx.stroke(); }
-    if (type === 'pants') { ctx.moveTo(200, 50); ctx.lineTo(200, 150); ctx.stroke(); }
-    if (type === 'cap') { ctx.moveTo(200, 100); ctx.lineTo(200, 200); ctx.stroke(); }
-
-    if (text) {
-      const hex = color.replace('#', '');
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-      const textColor = (yiq >= 128) ? '#000000' : '#ffffff';
-
-      ctx.fillStyle = textColor;
-      ctx.font = 'bold 24px Poppins, sans-serif';
-      ctx.textAlign = 'center';
-      
-      let textY = 200;
-      if(type === 'pants') textY = 120;
-      if(type === 'cap') textY = 160;
-
-      ctx.fillText(text, 200, textY, 150);
-    }
-  }, [type, color, text, isDarkMode]);
-
-  const garmentTypes = [
-    { id: 'tshirt', label: 'Camiseta' },
-    { id: 'hoodie', label: 'Sudadera' },
-    { id: 'pants', label: 'Pantalón' },
-    { id: 'cap', label: 'Gorra' }
-  ];
+  };
 
   return (
-    <div className="animate-fade-in">
-      <h2 className="text-3xl font-bold mb-6">Crea tu propia prenda</h2>
-      <div className="glass-panel rounded-2xl p-6 md:p-10 flex flex-col lg:flex-row gap-8">
-        <div className="flex-1 bg-white/10 dark:bg-black/20 rounded-xl flex items-center justify-center p-4 border border-white/20 dark:border-white/5">
-          <canvas ref={canvasRef} width="400" height="400" className="max-w-full h-auto drop-shadow-2xl"></canvas>
-        </div>
-        
-        <div className="w-full lg:w-80 flex flex-col gap-6">
-          <div>
-            <label className="block text-sm font-semibold mb-2">Prenda base</label>
-            <div className="grid grid-cols-2 gap-3">
-              {garmentTypes.map(g => (
-                <button 
-                  key={g.id} 
-                  onClick={() => setType(g.id)} 
-                  className={`glass-button py-2 rounded-lg text-sm ${type === g.id ? 'ring-2 ring-purple-500' : ''}`}
-                >
-                  {g.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-semibold mb-2">Color de la prenda</label>
-            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-full h-12 rounded-lg cursor-pointer bg-transparent border-0 p-0" />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-semibold mb-2">Añadir texto</label>
-            <input type="text" placeholder="Ej: GlassWear" maxLength="15" value={text} onChange={(e) => setText(e.target.value)} className="w-full glass-button px-4 py-3 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-purple-500" />
-          </div>
-
-          <button className="glass-button bg-gray-900/10 dark:bg-white/10 w-full py-4 rounded-xl font-bold mt-auto hover:bg-gray-900/20 dark:hover:bg-white/20">
-            Añadir al Carrito
-          </button>
-        </div>
+    <div className="glass-panel p-8 rounded-2xl max-w-2xl mx-auto mt-10">
+      <h2 className="text-2xl font-bold mb-4">Editor de Prenda</h2>
+      <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Escribe tu texto..." className="w-full p-3 rounded-xl mb-4 bg-white/20 border border-white/30 dark:text-white" />
+      <div className="flex gap-4">
+        <button onClick={onBack} className="glass-button px-6 py-3 rounded-xl">Volver</button>
+        <button onClick={handleSendToPrintful} disabled={isLoading} className="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold">
+          {isLoading ? 'Guardando...' : 'Añadir diseño al carrito'}
+        </button>
       </div>
     </div>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="glass-panel mx-4 mb-4 rounded-2xl p-8 mt-auto">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="text-center md:text-left">
-          <span className="text-xl font-bold">Glass<span className="font-light">Wear</span></span>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">© 2026 Todos los derechos reservados.</p>
-        </div>
-        <div className="flex gap-4">
-          <a href="#" className="glass-button p-3 rounded-full hover:text-blue-600 transition-colors"><Globe className="w-5 h-5" /></a>
-          <a href="#" className="glass-button p-3 rounded-full hover:text-pink-600 transition-colors"><Camera className="w-5 h-5" /></a>
-          <a href="#" className="glass-button p-3 rounded-full hover:text-blue-500 transition-colors"><User className="w-5 h-5" /></a>
-          <a href="#" className="glass-button p-3 rounded-full hover:text-green-500 transition-colors"><Mail className="w-5 h-5" /></a>
-        </div>
-      </div>
-    </footer>
   );
 }
