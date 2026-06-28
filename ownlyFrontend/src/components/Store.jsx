@@ -31,7 +31,7 @@ export default function Store() {
   useEffect(() => {
     const traerProductos = async () => {
       try {
-        const respuesta = await fetch('http://localhost:3000/api/products');
+        const respuesta = await fetch('https://ownlyclothing.onrender.com/api/products');
         const datos = await respuesta.json();
 
         const productosClasificados = datos.map(producto => {

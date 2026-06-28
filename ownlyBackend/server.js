@@ -114,5 +114,5 @@ app.post('/api/create-custom-product', async (req, res) => {
 // ─── Arrancar el servidor ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor backend corriendo en https://ownlyclothing.onrender.com/api/products`);
+    console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
 });
