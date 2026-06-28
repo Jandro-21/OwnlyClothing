@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Droplet, Moon, Sun, Palette, ShoppingBag, X, CreditCard, Plus, Minus } from 'lucide-react';
 
 function parsePrecio(precio) {
-  if (!precio || precio === '0.00') return 0;
-  if (typeof precio === 'string') return parseFloat(precio.replace(',', '.'));
+  if (precio == null) return 0;
+  if (typeof precio === 'string') {
+    const limpio = precio.replace(/[^0-9.,]/g, '').replace(',', '.');
+    return parseFloat(limpio) || 0;
+  }
   return parseFloat(precio) || 0;
 }
 
@@ -110,7 +113,7 @@ export default function Store() {
 
   const totalItems = cart.reduce((sum, item) => sum + item.cantidad, 0);
   const totalDelCarrito = cart
-    .reduce((total, item) => total + parsePrecio(item.producto.retail_price) * item.cantidad, 0)
+    .reduce((total, item) => total + parsePrecio(item.producto.retail_price || '20.00') * item.cantidad, 0)
     .toFixed(2);
 
   const irAPagarConStripe = async () => {
@@ -302,7 +305,7 @@ export default function Store() {
                       <div>
                         <h4 className="font-semibold text-sm line-clamp-1">{item.producto.name}</h4>
                         <p className="text-sm text-purple-600 font-bold">
-                          {parsePrecio(item.producto.retail_price).toFixed(2)}€
+                          {item.producto.retail_price || '20.00'}€
                         </p>
                       </div>
                     </div>
