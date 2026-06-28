@@ -1,79 +1,117 @@
+// ─── Configuración inicial ─────────────────────────────────────────────
+// Cargamos las variables de entorno (API keys de Stripe y Printful)
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
+
+// Middleware global: permitir peticiones desde el frontend y entender JSON
 app.use(cors());
 app.use(express.json());
 
-// 1. Endpoint: Obtener productos de Printful
+// ─── 1. Catálogo: traer todos los productos desde Printful ─────────────
+// Printful es nuestro proveedor de print-on-demand. Aquí obtenemos
+// el catálogo completo de productos que tenemos disponibles.
 app.get('/api/products', async (req, res) => {
     try {
-        const response = await axios.get('https://api.printful.com/store/products', {
+        const respuesta = await axios.get('https://api.printful.com/store/products', {
             headers: { 'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}` }
         });
-        res.json(response.data.result);
+        res.json(respuesta.data.result);
     } catch (error) {
-        console.error("Error en Printful API:", error.message);
-        res.status(500).json({ error: "Error al contactar con Printful" });
+        console.error('Error al contactar con Printful:', error.message);
+        res.status(500).json({ error: 'No pudimos obtener los productos de Printful' });
     }
 });
 
-// 2. Endpoint: Generar Sesión de Pago en Stripe
+// ─── 2. Pago: crear una sesión de Stripe Checkout ─────────────────────
+// Recibe los productos del carrito y arma una sesión de pago segura.
+// Stripe se encarga de todo: formulario de tarjeta, confirmación, etc.
 app.post('/api/create-stripe-session', async (req, res) => {
     try {
         const { cartItems } = req.body;
 
+        // Si el carrito está vacío, no tiene sentido seguir
         if (!cartItems || cartItems.length === 0) {
-            return res.status(400).json({ error: "El carrito está vacío" });
+            return res.status(400).json({ error: 'El carrito está vacío' });
         }
 
-        const lineItems = cartItems.map(item => {
-            // 1. Protección del precio: Si no hay precio, ponemos 20€ por defecto
-            const price = parseFloat(item.retail_price) || 20.00;
-            
-            // 2. Protección de la imagen
-            const productData = {
-                name: item.name || 'Prenda de OwnlyClothing',
+        // Convertimos cada producto del carrito al formato que entiende Stripe
+        const productosParaStripe = cartItems.map(item => {
+            // El carrito ahora usa { key, producto, cantidad }
+            const prod = item.producto || item;
+            const cantidad = item.cantidad || 1;
+
+            // Si por algún motivo no hay precio, ponemos 20€ por defecto
+            const precio = parseFloat(prod.retail_price) || 20.00;
+
+            const datosProducto = {
+                name: prod.name || 'Prenda de OwnlyClothing',
             };
-            if (item.thumbnail_url) {
-                productData.images = [item.thumbnail_url];
+
+            // La imagen es opcional, pero si la tiene la incluimos
+            if (prod.thumbnail_url) {
+                datosProducto.images = [prod.thumbnail_url];
             }
 
             return {
                 price_data: {
                     currency: 'eur',
-                    product_data: productData,
-                    unit_amount: Math.round(price * 100), 
+                    product_data: datosProducto,
+                    unit_amount: Math.round(precio * 100), // Stripe trabaja en céntimos
                 },
-                quantity: 1,
+                quantity: cantidad,
             };
         });
 
-        const session = await stripe.checkout.sessions.create({
+        // Creamos la sesión de pago en Stripe
+        const sesion = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
-            line_items: lineItems,
+            line_items: productosParaStripe,
             mode: 'payment',
             success_url: 'http://localhost:5173/success',
             cancel_url: 'http://localhost:5173/cancel',
         });
 
-        res.json({ url: session.url });
+        // Devolvemos la URL para que el frontend redirija al usuario
+        res.json({ url: sesion.url });
     } catch (error) {
-        // Esto imprimirá en la consola de Node el error EXACTO que da Stripe
-        console.error("Error devuelto por Stripe:", error.message);
-        res.status(500).json({ error: "Error al iniciar el pago con Stripe" });
+        // Cualquier error de Stripe se imprime aquí con todo detalle
+        console.error('Error devuelto por Stripe:', error.message);
+        res.status(500).json({ error: 'Error al iniciar el pago con Stripe' });
     }
 });
 
-// 3. Endpoint: Producto personalizado (placeholder)
+// ─── 3. Personalización: guardar un diseño hecho por el usuario ────────
+// Recibe los datos del diseño personalizado y devuelve un producto simulado
+// para que el frontend lo añada al carrito.
 app.post('/api/create-custom-product', async (req, res) => {
-    console.log("Personalización recibida:", req.body);
-    res.json({ success: true, message: "Recibido en servidor" });
+    const { type, text, color } = req.body;
+    console.log('Diseño personalizado recibido:', { type, text, color });
+
+    const precios = { camiseta: '25.00', sudadera: '45.00', gorra: '20.00' };
+    const precio = precios[type] || '25.00';
+
+    res.json({
+        success: true,
+        product: {
+            id: `custom_${Date.now()}`,
+            name: `${
+                { camiseta: 'Camiseta', sudadera: 'Sudadera', gorra: 'Gorra' }[type] || 'Prenda'
+            } personalizada — "${text}"`,
+            retail_price: precio,
+            thumbnail_url: `https://placehold.co/200x200/${(color || '6d28d9').replace('#', '')}/${
+                color === '#ffffff' ? '333' : 'fff'
+            }?text=${encodeURIComponent(text || 'Ownly')}`,
+        }
+    });
 });
 
+// ─── Arrancar el servidor ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
