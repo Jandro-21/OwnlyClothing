@@ -37,15 +37,6 @@ Para mantener este proyecto 100% gratuito y eficiente, dividí la arquitectura d
 
 ---
 
-## ⚙️ Configuración Local
-
-Si quieres clonar este proyecto y jugar con él, vas a necesitar configurar tus entornos.
-
-### 1. Variables del Backend (`/backend/.env`)
-```env
-PORT=3000
-STRIPE_SECRET_KEY=sk_test_tu_clave_secreta
-PRINTFUL_API_KEY=tu_token_de_printful
 
 
 ownly-clothing-j9yz2lcau.vercel.app
