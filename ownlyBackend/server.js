@@ -5,7 +5,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+// Forzamos a Stripe a usar una versión explícita para evitar errores de entorno en Render
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2023-10-16' 
+});
 
 const app = express();
 
@@ -68,13 +72,13 @@ app.post('/api/create-stripe-session', async (req, res) => {
             };
         });
 
-        // Creamos la sesión de pago en Stripe
+        // Creamos la sesión de pago en Stripe apuntando a producción
         const sesion = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: productosParaStripe,
             mode: 'payment',
-            success_url: 'http://localhost:5173/success',
-            cancel_url: 'http://localhost:5173/cancel',
+            success_url: 'https://ownly-clothing.vercel.app/success',
+            cancel_url: 'https://ownly-clothing.vercel.app/cancel',
         });
 
         // Devolvemos la URL para que el frontend redirija al usuario
@@ -114,5 +118,5 @@ app.post('/api/create-custom-product', async (req, res) => {
 // ─── Arrancar el servidor ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
+    console.log(`Servidor backend corriendo en el puerto ${PORT}`);
 });
