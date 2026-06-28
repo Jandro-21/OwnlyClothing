@@ -119,7 +119,7 @@ export default function Store() {
   const irAPagarConStripe = async () => {
     setProcessingPayment(true);
     try {
-      const respuesta = await fetch('http://localhost:3000/api/create-stripe-session', {
+      const respuesta = await fetch('https://ownlyclothing.onrender.com/api/create-stripe-session', { // ✅ URL DE RENDER
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cartItems: cart })
