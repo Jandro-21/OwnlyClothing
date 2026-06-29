@@ -8,8 +8,8 @@ La aplicación simula de extremo a extremo la experiencia de usuario de una tien
 
 ## 🚀 Demo En Vivo & Arquitectura
 
-*   **Frontend:** [Añade aquí tu enlace de Netlify/Vercel]
-*   **Backend API:** [Añade aquí tu enlace de Render/Railway si aplica]
+*   **Frontend:**
+*   **Backend API:**
 *   **Diseño Interfaz:** Minimalista / Glassmorphism con soporte nativo de Modo Oscuro.
 
 ---
